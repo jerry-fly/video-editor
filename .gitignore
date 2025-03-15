@@ -43,4 +43,9 @@ dist/
 *.bak
 *.log
 temp/
-tmp/ 
+tmp/
+
+# 大图标文件
+resources/icon.icns
+resources/icon.ico
+resources/icon.iconset/ 
