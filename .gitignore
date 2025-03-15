@@ -45,8 +45,8 @@ dist/
 temp/
 tmp/
 
-# 大图标文件
-resources/icon.icns
-resources/icon.ico
-resources/icon.iconset/
-resources/icon.png 
+# 大图标文件 - 注释掉以便上传图标
+# resources/icon.icns
+# resources/icon.ico
+# resources/icon.iconset/
+# resources/icon.png 
