@@ -37,6 +37,22 @@ def check_pyinstaller():
     
     return True
 
+def check_dependencies():
+    """检查并安装所有必要的依赖"""
+    print("检查依赖...")
+    
+    # 读取requirements.txt文件
+    if os.path.exists("requirements.txt"):
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
+            print("依赖安装成功")
+        except subprocess.CalledProcessError:
+            print("警告: 部分依赖安装失败，请手动安装: pip install -r requirements.txt")
+    else:
+        print("警告: 未找到requirements.txt文件")
+    
+    return True
+
 def clean_build_dirs():
     """清理构建目录"""
     print("清理构建目录...")
@@ -89,6 +105,131 @@ def get_platform_info():
     else:
         raise ValueError(f"不支持的操作系统: {system}")
 
+def create_spec_file(platform_info):
+    """创建自定义spec文件"""
+    platform_name = platform_info["name"]
+    spec_file = f"{APP_NAME}.spec"
+    
+    print(f"创建自定义spec文件: {spec_file}")
+    
+    # 获取图标路径
+    icon_path = platform_info["icon"]
+    if not os.path.exists(icon_path):
+        icon_path = None
+        print(f"警告: 图标文件 {platform_info['icon']} 不存在，将使用默认图标")
+    
+    # 确定是否使用单文件模式
+    onefile = platform_name == "Windows" or platform_name == "Linux"
+    
+    # 创建spec文件内容
+    spec_content = f"""# -*- mode: python ; coding: utf-8 -*-
+
+block_cipher = None
+
+a = Analysis(
+    ['run.py'],
+    pathex=['.'],
+    binaries=[],
+    datas=[],
+    hiddenimports=[
+        'cv2', 'moviepy', 'numpy', 
+        'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.QtWidgets',
+        'PyQt5.QtMultimedia', 'PyQt5.QtMultimediaWidgets',
+        'video_editor_app', 'video_editor_app.clip_tab', 'video_editor_app.merge_tab', 
+        'video_editor_app.convert_tab', 'video_editor_app.main'
+    ],
+    hookspath=[],
+    hooksconfig={{}},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+"""
+    
+    if onefile:
+        spec_content += f"""
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='{APP_NAME}',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+"""
+        if icon_path:
+            spec_content += f"    icon='{icon_path}',\n"
+        
+        spec_content += ")\n"
+    else:
+        # macOS应用程序包
+        spec_content += f"""
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='{APP_NAME}',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+"""
+        if icon_path:
+            spec_content += f"    icon='{icon_path}',\n"
+        
+        spec_content += """)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='{APP_NAME}',
+)
+
+app = BUNDLE(
+    coll,
+    name='{APP_NAME}.app',
+    icon='{icon_path}' if '{icon_path}' else None,
+    bundle_identifier=None,
+)
+"""
+    
+    # 写入spec文件
+    with open(spec_file, "w", encoding="utf-8") as f:
+        f.write(spec_content)
+    
+    print(f"spec文件创建完成: {spec_file}")
+    return spec_file
+
 def build_executable():
     """构建可执行文件"""
     platform_info = get_platform_info()
@@ -96,46 +237,18 @@ def build_executable():
     
     print(f"开始构建{platform_name}可执行文件...")
     
+    # 创建自定义spec文件
+    spec_file = create_spec_file(platform_info)
+    
     # 构建命令
     cmd = [
         sys.executable,  # 使用当前Python解释器
         "-m",
         "PyInstaller",   # 使用模块方式调用PyInstaller
-        f"--name={APP_NAME}",
-        "--windowed",  # 使用窗口模式，不显示控制台
-        "--clean",     # 清理临时文件
-        "--noconfirm", # 不询问确认
+        "--clean",       # 清理临时文件
+        "--noconfirm",   # 不询问确认
+        spec_file        # 使用自定义spec文件
     ]
-    
-    # 根据平台添加特定选项
-    if platform_name == "Windows" or platform_name == "Linux":
-        cmd.append("--onefile")  # Windows和Linux使用单文件模式
-    
-    # 添加图标
-    icon_path = platform_info["icon"]
-    if os.path.exists(icon_path):
-        cmd.append(f"--icon={icon_path}")
-    else:
-        print(f"警告: 图标文件 {icon_path} 不存在，将使用默认图标")
-    
-    # 添加隐藏导入
-    hidden_imports = [
-        "cv2", "moviepy", "numpy", 
-        "PyQt5", "PyQt5.QtCore", "PyQt5.QtGui", "PyQt5.QtWidgets",
-        "PyQt5.QtMultimedia", "PyQt5.QtMultimediaWidgets"
-    ]
-    
-    for imp in hidden_imports:
-        cmd.append(f"--hidden-import={imp}")
-    
-    # 添加数据文件
-    # 如果有需要包含的数据文件，可以在这里添加
-    # data_files = [("path/to/data", "data")]
-    # for src, dst in data_files:
-    #     cmd.append(f"--add-data={src}{platform_info['separator']}{dst}")
-    
-    # 添加主脚本
-    cmd.append("run.py")
     
     # 执行构建命令
     print("执行命令:", " ".join(cmd))
@@ -241,6 +354,9 @@ def main():
     # 检查PyInstaller
     if not check_pyinstaller():
         return 1
+    
+    # 检查依赖
+    check_dependencies()
     
     # 清理构建目录
     clean_build_dirs()

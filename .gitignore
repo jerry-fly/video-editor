@@ -8,6 +8,8 @@ env/
 build/
 develop-eggs/
 dist/
+dist-linux/
+dist-windows/
 downloads/
 eggs/
 .eggs/
@@ -20,23 +22,92 @@ var/
 .installed.cfg
 *.egg
 
-# 虚拟环境
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# IPython Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# dotenv
 .env
-.venv
+
+# virtualenv
 venv/
 ENV/
-.conda/
 
-# PyInstaller
-build/
-dist/
+# Spyder project settings
+.spyderproject
+
+# Rope project settings
+.ropeproject
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.docker/
+
+# 虚拟环境
+.env
+.venv
+venv/
+ENV/
+.conda/
 
 # 临时文件
 *.tmp
