@@ -14,15 +14,24 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
+echo 检查代理设置...
+python disable_proxy.py
+if %ERRORLEVEL% neq 0 (
+    echo 警告: 代理设置检查失败，将尝试继续...
+)
+
+echo.
 echo 检查依赖...
-python install_dependencies.py
+python install_dependencies.py --no-proxy
 if %ERRORLEVEL% neq 0 (
     echo 警告: 依赖检查失败，将尝试继续...
+    echo 尝试离线安装...
+    python install_dependencies.py --offline --no-proxy
 )
 
 echo.
 echo 安装psutil库...
-pip install psutil
+pip install psutil --no-cache-dir
 if %ERRORLEVEL% neq 0 (
     echo 警告: 安装psutil失败，将尝试继续...
 )

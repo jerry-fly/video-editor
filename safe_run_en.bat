@@ -16,15 +16,24 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
+echo Checking proxy settings...
+python disable_proxy.py
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Proxy settings check failed, will try to continue...
+)
+
+echo.
 echo Checking dependencies...
-python install_dependencies.py
+python install_dependencies.py --no-proxy
 if %ERRORLEVEL% neq 0 (
     echo Warning: Dependency check failed, will try to continue...
+    echo Trying offline installation...
+    python install_dependencies.py --offline --no-proxy
 )
 
 echo.
 echo Installing psutil library...
-pip install psutil
+pip install psutil --no-cache-dir
 if %ERRORLEVEL% neq 0 (
     echo Warning: Failed to install psutil, will try to continue...
 )

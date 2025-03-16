@@ -16,8 +16,43 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo 运行依赖安装脚本...
-python install_dependencies.py
+echo 请选择安装模式:
+echo 1. 在线安装（默认）
+echo 2. 离线安装
+echo 3. 禁用代理并在线安装
+echo 4. 禁用代理并离线安装
+echo.
+choice /c 1234 /n /m "请选择 [1-4]: "
+
+if %ERRORLEVEL% equ 1 (
+    echo.
+    echo 选择了在线安装模式
+    echo 运行依赖安装脚本...
+    python install_dependencies.py
+)
+if %ERRORLEVEL% equ 2 (
+    echo.
+    echo 选择了离线安装模式
+    echo 运行依赖安装脚本（离线模式）...
+    python install_dependencies.py --offline
+)
+if %ERRORLEVEL% equ 3 (
+    echo.
+    echo 选择了禁用代理并在线安装模式
+    echo 运行禁用代理脚本...
+    python disable_proxy.py
+    echo 运行依赖安装脚本...
+    python install_dependencies.py --no-proxy
+)
+if %ERRORLEVEL% equ 4 (
+    echo.
+    echo 选择了禁用代理并离线安装模式
+    echo 运行禁用代理脚本...
+    python disable_proxy.py
+    echo 运行依赖安装脚本（离线模式）...
+    python install_dependencies.py --offline --no-proxy
+)
+
 if %ERRORLEVEL% neq 0 (
     echo 错误: 依赖安装失败，请查看日志获取详细信息
     pause
