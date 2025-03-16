@@ -3,7 +3,7 @@
 ## 版本信息
 - 版本号: v1.0.0
 - 发布日期: 2024-03-16
-- 平台支持: macOS, Windows(源码构建)
+- 平台支持: macOS, Windows
 
 ## 功能特性
 - 视频剪辑：支持对视频进行精确的时间段剪辑
@@ -28,20 +28,28 @@
 - 在终端中运行解压后的可执行文件
 
 ### Windows
+- 下载 `视频编辑器_v1.0.0_Windows.zip` 并解压
+- 双击运行 `视频编辑器.exe` 文件
+- 注意：首次运行时Windows可能会显示安全警告，点击"更多信息"然后"仍要运行"即可
+- 如果缺少必要的系统组件，请安装最新的Visual C++ Redistributable
+
+### 从源代码构建（适用于所有平台）
 - 下载 `视频编辑器_v1.0.0_源代码.zip` 并解压
 - 确保已安装Python 3.8或更高版本
 - 安装FFmpeg并添加到系统PATH
 - 在命令提示符中进入解压目录
 - 运行 `pip install -r requirements.txt` 安装依赖
 - 运行 `python run.py` 启动应用程序
-- 可选：使用 `python build_app.py` 构建Windows可执行文件
+- Windows用户可使用 `python build_app_windows.py` 构建Windows可执行文件
+- macOS用户可使用 `python build_app.py` 构建macOS应用程序
 
 ## 已知问题
 - 处理超大视频文件时可能会出现性能问题
 - 某些特殊编码的视频可能无法正确识别
+- Windows版本可能需要安装额外的编解码器才能处理某些视频格式
 
 ## 后续计划
 - 添加更多视频特效
 - 支持批量处理功能
 - 优化性能，提高大文件处理速度
-- 提供Windows和Linux平台的预构建可执行文件 
+- 提供Linux平台的预构建可执行文件 
