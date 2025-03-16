@@ -40,8 +40,7 @@
 - 在命令提示符中进入解压目录
 - 运行 `pip install -r requirements.txt` 安装依赖
 - 运行 `python run.py` 启动应用程序
-- Windows用户可使用 `python build_app_windows.py` 构建Windows可执行文件
-- macOS用户可使用 `python build_app.py` 构建macOS应用程序
+- 使用统一构建脚本 `python build_app_unified.py` 可在任何平台上构建对应的可执行文件
 
 ## 已知问题
 - 处理超大视频文件时可能会出现性能问题
