@@ -11,12 +11,31 @@ import sys
 import shutil
 import subprocess
 import platform
+import importlib.util
 from pathlib import Path
 from datetime import datetime
 
 # 应用版本号
 APP_VERSION = "1.0.0"
 APP_NAME = "视频编辑器"
+
+def check_pyinstaller():
+    """检查PyInstaller是否已安装，如果没有则安装"""
+    print("检查PyInstaller...")
+    
+    # 检查PyInstaller是否已安装
+    if importlib.util.find_spec("PyInstaller") is None:
+        print("PyInstaller未安装，正在安装...")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=True)
+            print("PyInstaller安装成功")
+        except subprocess.CalledProcessError:
+            print("错误: PyInstaller安装失败，请手动安装: pip install pyinstaller")
+            return False
+    else:
+        print("PyInstaller已安装")
+    
+    return True
 
 def clean_build_dirs():
     """清理构建目录"""
@@ -79,7 +98,9 @@ def build_executable():
     
     # 构建命令
     cmd = [
-        "pyinstaller",
+        sys.executable,  # 使用当前Python解释器
+        "-m",
+        "PyInstaller",   # 使用模块方式调用PyInstaller
         f"--name={APP_NAME}",
         "--windowed",  # 使用窗口模式，不显示控制台
         "--clean",     # 清理临时文件
@@ -118,9 +139,13 @@ def build_executable():
     
     # 执行构建命令
     print("执行命令:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+        print("构建完成")
+    except subprocess.CalledProcessError as e:
+        print(f"构建失败: {str(e)}")
+        raise
     
-    print("构建完成")
     return platform_info
 
 def create_zip_package(platform_info):
@@ -150,10 +175,17 @@ def create_zip_package(platform_info):
     zip_name = f"{APP_NAME}_v{APP_VERSION}_{platform_name}.zip"
     
     # 使用平台特定的命令创建ZIP包
-    cmd = platform_info["zip_cmd"] + platform_info["zip_args"](exe_path, zip_name)
-    
-    print("执行命令:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    if platform_name == "Windows":
+        # 在Windows上使用Python的zipfile模块创建ZIP文件
+        import zipfile
+        print(f"创建ZIP文件: {zip_name}")
+        with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.write(exe_path, os.path.basename(exe_path))
+    else:
+        # 在macOS和Linux上使用命令行工具
+        cmd = platform_info["zip_cmd"] + platform_info["zip_args"](exe_path, zip_name)
+        print("执行命令:", " ".join(cmd))
+        subprocess.run(cmd, check=True)
     
     print(f"ZIP包创建完成: {zip_name}")
 
@@ -178,19 +210,23 @@ def create_source_package():
     
     # 使用zip命令创建ZIP包
     if platform.system() == "Windows":
-        # Windows使用PowerShell
-        files_str = "', '".join(files_to_include)
-        cmd = [
-            "powershell",
-            "-Command",
-            f"Compress-Archive -Path '{files_str}' -DestinationPath '{zip_name}' -Force"
-        ]
+        # Windows使用Python的zipfile模块
+        import zipfile
+        print(f"创建源代码ZIP文件: {zip_name}")
+        with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for item in files_to_include:
+                if os.path.isfile(item):
+                    zipf.write(item, item)
+                elif os.path.isdir(item):
+                    for root, dirs, files in os.walk(item):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            zipf.write(file_path, file_path)
     else:
         # macOS和Linux使用zip命令
         cmd = ["zip", "-r", zip_name] + files_to_include
-    
-    print("执行命令:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+        print("执行命令:", " ".join(cmd))
+        subprocess.run(cmd, check=True)
     
     print(f"源代码包创建完成: {zip_name}")
 
@@ -201,6 +237,10 @@ def main():
     print(f"Python版本: {platform.python_version()}")
     print(f"开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("-" * 50)
+    
+    # 检查PyInstaller
+    if not check_pyinstaller():
+        return 1
     
     # 清理构建目录
     clean_build_dirs()
