@@ -32,6 +32,17 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
+echo Checking moviepy.editor module...
+python -c "import moviepy.editor" 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo Warning: moviepy.editor module not found, trying to fix...
+    python fix_moviepy.py
+    if %ERRORLEVEL% neq 0 (
+        echo Warning: Failed to fix moviepy.editor, will try to continue...
+    )
+)
+
+echo.
 echo Installing psutil library...
 pip install psutil --no-cache-dir
 if %ERRORLEVEL% neq 0 (
