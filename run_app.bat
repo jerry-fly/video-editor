@@ -1,31 +1,35 @@
 @echo off
-echo 启动视频编辑器应用程序...
+chcp 65001 > nul
+echo Starting video editor application...
 echo.
 
-echo 检查Python环境...
+echo Checking Python environment...
 python --version
 if %ERRORLEVEL% neq 0 (
-    echo 错误: 未找到Python，请确保已安装Python并添加到PATH环境变量中
+    echo Error: Python not found, please make sure Python is installed and added to PATH
+    pause
     exit /b 1
 )
 
 echo.
-echo 检查依赖...
+echo Checking dependencies...
 pip show PyQt5 >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo 安装依赖...
+    echo Installing dependencies...
     pip install -r requirements.txt
     if %ERRORLEVEL% neq 0 (
-        echo 错误: 安装依赖失败
+        echo Error: Failed to install dependencies
+        pause
         exit /b 1
     )
 )
 
 echo.
-echo 启动应用程序...
+echo Starting application...
 python run.py
 if %ERRORLEVEL% neq 0 (
-    echo 错误: 应用程序运行失败
+    echo Error: Application failed to run
+    pause
     exit /b 1
 )
 
