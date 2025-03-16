@@ -15,18 +15,73 @@ logger = logging.getLogger("VideoEditor.main")
 
 # 正确导入模块
 try:
-    from video_editor_app.clip_tab import VideoClipTab
-    logger.info("成功导入VideoClipTab")
-except Exception as e:
-    logger.error(f"导入VideoClipTab时出错: {str(e)}")
-    logger.debug(traceback.format_exc())
+    # 尝试相对导入
+    from .clip_tab import VideoClipTab
+    logger.info("成功导入VideoClipTab（相对导入）")
+except (ImportError, ValueError) as e:
+    logger.warning(f"相对导入VideoClipTab失败: {str(e)}")
+    try:
+        # 尝试绝对导入
+        from video_editor_app.clip_tab import VideoClipTab
+        logger.info("成功导入VideoClipTab（绝对导入）")
+    except ImportError as e:
+        logger.error(f"导入VideoClipTab时出错: {str(e)}")
+        logger.debug(traceback.format_exc())
+        # 尝试直接导入
+        try:
+            import clip_tab
+            VideoClipTab = clip_tab.VideoClipTab
+            logger.info("成功导入VideoClipTab（直接导入）")
+        except ImportError as e:
+            logger.error(f"直接导入VideoClipTab时出错: {str(e)}")
+            logger.debug(traceback.format_exc())
+            VideoClipTab = None
 
 try:
-    from video_editor_app.merge_tab import VideoMergeTab
-    logger.info("成功导入VideoMergeTab")
-except Exception as e:
-    logger.error(f"导入VideoMergeTab时出错: {str(e)}")
-    logger.debug(traceback.format_exc())
+    # 尝试相对导入
+    from .merge_tab import VideoMergeTab
+    logger.info("成功导入VideoMergeTab（相对导入）")
+except (ImportError, ValueError) as e:
+    logger.warning(f"相对导入VideoMergeTab失败: {str(e)}")
+    try:
+        # 尝试绝对导入
+        from video_editor_app.merge_tab import VideoMergeTab
+        logger.info("成功导入VideoMergeTab（绝对导入）")
+    except ImportError as e:
+        logger.error(f"导入VideoMergeTab时出错: {str(e)}")
+        logger.debug(traceback.format_exc())
+        # 尝试直接导入
+        try:
+            import merge_tab
+            VideoMergeTab = merge_tab.VideoMergeTab
+            logger.info("成功导入VideoMergeTab（直接导入）")
+        except ImportError as e:
+            logger.error(f"直接导入VideoMergeTab时出错: {str(e)}")
+            logger.debug(traceback.format_exc())
+            VideoMergeTab = None
+
+try:
+    # 尝试相对导入
+    from .convert_tab import VideoConvertTab
+    logger.info("成功导入VideoConvertTab（相对导入）")
+except (ImportError, ValueError) as e:
+    logger.warning(f"相对导入VideoConvertTab失败: {str(e)}")
+    try:
+        # 尝试绝对导入
+        from video_editor_app.convert_tab import VideoConvertTab
+        logger.info("成功导入VideoConvertTab（绝对导入）")
+    except ImportError as e:
+        logger.error(f"导入VideoConvertTab时出错: {str(e)}")
+        logger.debug(traceback.format_exc())
+        # 尝试直接导入
+        try:
+            import convert_tab
+            VideoConvertTab = convert_tab.VideoConvertTab
+            logger.info("成功导入VideoConvertTab（直接导入）")
+        except ImportError as e:
+            logger.error(f"直接导入VideoConvertTab时出错: {str(e)}")
+            logger.debug(traceback.format_exc())
+            VideoConvertTab = None
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -61,8 +116,11 @@ class MainWindow(QMainWindow):
         try:
             # 添加视频剪辑标签页
             logger.info("创建VideoClipTab")
-            self.clip_tab = VideoClipTab()
-            self.tabs.addTab(self.clip_tab, "视频剪辑")
+            if VideoClipTab is not None:
+                self.clip_tab = VideoClipTab()
+                self.tabs.addTab(self.clip_tab, "视频剪辑")
+            else:
+                raise ImportError("VideoClipTab模块未成功导入")
         except Exception as e:
             logger.error(f"创建VideoClipTab时出错: {str(e)}")
             logger.debug(traceback.format_exc())
@@ -77,8 +135,11 @@ class MainWindow(QMainWindow):
         try:
             # 添加视频合并标签页
             logger.info("创建VideoMergeTab")
-            self.merge_tab = VideoMergeTab()
-            self.tabs.addTab(self.merge_tab, "视频合并")
+            if VideoMergeTab is not None:
+                self.merge_tab = VideoMergeTab()
+                self.tabs.addTab(self.merge_tab, "视频合并")
+            else:
+                raise ImportError("VideoMergeTab模块未成功导入")
         except Exception as e:
             logger.error(f"创建VideoMergeTab时出错: {str(e)}")
             logger.debug(traceback.format_exc())
@@ -90,13 +151,24 @@ class MainWindow(QMainWindow):
             error_layout.addWidget(error_label)
             self.tabs.addTab(error_widget, "视频合并(错误)")
         
-        # 添加视频转换标签页（待实现）
-        self.convert_tab = QWidget()
-        convert_layout = QVBoxLayout(self.convert_tab)
-        convert_label = QLabel("视频转换功能正在开发中...")
-        convert_label.setAlignment(Qt.AlignCenter)
-        convert_layout.addWidget(convert_label)
-        self.tabs.addTab(self.convert_tab, "视频转换")
+        try:
+            # 添加视频转换标签页
+            logger.info("创建VideoConvertTab")
+            if VideoConvertTab is not None:
+                self.convert_tab = VideoConvertTab()
+                self.tabs.addTab(self.convert_tab, "视频转换")
+            else:
+                raise ImportError("VideoConvertTab模块未成功导入")
+        except Exception as e:
+            logger.error(f"创建VideoConvertTab时出错: {str(e)}")
+            logger.debug(traceback.format_exc())
+            # 创建一个错误提示标签
+            error_widget = QWidget()
+            error_layout = QVBoxLayout(error_widget)
+            error_label = QLabel("视频转换模块加载失败，请检查日志")
+            error_label.setAlignment(Qt.AlignCenter)
+            error_layout.addWidget(error_label)
+            self.tabs.addTab(error_widget, "视频转换(错误)")
         
         # 添加标签页到主布局
         main_layout.addWidget(self.tabs)
