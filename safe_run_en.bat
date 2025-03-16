@@ -3,36 +3,52 @@ rem Set UTF-8 encoding
 chcp 65001 > nul
 
 echo ============================================================
-echo Safe Start Video Editor (Enhanced Protection)
+echo Safe Start Video Editor
 echo ============================================================
 echo.
 
 echo Checking Python environment...
-python --version 2>nul
-if errorlevel 1 (
-    echo Error: Python not found. Please make sure Python is installed and added to PATH.
+python --version
+if %ERRORLEVEL% neq 0 (
+    echo Error: Python not found, please make sure Python is installed and added to PATH
     pause
     exit /b 1
 )
 
 echo.
-echo Installing required libraries...
-pip install psutil
-if errorlevel 1 (
-    echo Warning: Failed to install psutil. Will try to continue...
+echo Checking dependencies...
+python install_dependencies.py
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Dependency check failed, will try to continue...
 )
 
 echo.
-echo EMERGENCY CLEANUP - Terminating any existing VideoEditor processes...
-python process_monitor.py --emergency
-timeout /t 2 > nul
+echo Installing psutil library...
+pip install psutil
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Failed to install psutil, will try to continue...
+)
 
 echo.
-echo Starting enhanced process monitor...
-start "VideoEditor Process Monitor" cmd /c "python process_monitor.py --monitor --max 1 --auto-kill --interval 2 --cpu 80 --memory 80"
+echo Cleaning up existing VideoEditor processes...
+python process_monitor.py --cleanup
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Process cleanup failed, will try to continue...
+)
 
 echo.
-echo Starting Video Editor with protection...
+echo Starting process monitoring...
+start "VideoEditor Process Monitor" cmd /c "python process_monitor.py --monitor --max 2 --auto-kill --interval 3"
+
+echo.
+echo Fixing module import path...
+python fix_module_path.py
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Module path fix failed, will try to continue...
+)
+
+echo.
+echo Starting Video Editor...
 if exist "dist\VideoEditor\VideoEditor.exe" (
     cd dist\VideoEditor
     start VideoEditor.exe
@@ -43,14 +59,11 @@ if exist "dist\VideoEditor\VideoEditor.exe" (
     cd ..\..
 ) else (
     echo Executable not found, will run Python script directly
-    start "VideoEditor" cmd /c "python run.py"
+    python run_fixed.py
 )
 
 echo.
-echo Application started with enhanced protection
-echo.
-echo If the application becomes unresponsive or creates too many processes:
-echo 1. Run emergency_cleanup_en.bat to force terminate all processes
-echo 2. Check logs in the logs directory for error information
+echo Application has been started
+echo If you encounter any issues, please run cleanup_processes.bat to clean up all processes
 echo.
 pause 
