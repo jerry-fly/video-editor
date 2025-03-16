@@ -13,22 +13,138 @@ import logging
 import socket
 import tempfile
 import atexit
+import signal
+import psutil
+import threading
 
-# 单实例检查 - 使用文件锁或网络端口
+# 全局变量，用于跟踪应用程序状态
+APP_STARTED = False
+LOCK_FILE_PATH = os.path.join(tempfile.gettempdir(), "video_editor_lock.pid")
+LOCK_SOCKET = None
+
+# 单实例检查 - 使用文件锁和网络端口双重保障
 def is_already_running():
-    """检查应用程序是否已经在运行"""
-    # 方法1: 尝试绑定一个特定端口
+    """检查应用程序是否已经在运行，使用文件锁和网络端口双重检查"""
+    global LOCK_SOCKET
+    
+    # 方法1: 检查PID文件
+    if os.path.exists(LOCK_FILE_PATH):
+        try:
+            with open(LOCK_FILE_PATH, 'r') as f:
+                old_pid = int(f.read().strip())
+            # 检查PID是否存在
+            if psutil.pid_exists(old_pid):
+                process = psutil.Process(old_pid)
+                # 检查进程名称是否包含python或VideoEditor
+                if "python" in process.name().lower() or "videoeditor" in process.name().lower():
+                    return True
+        except (ValueError, psutil.NoSuchProcess, psutil.AccessDenied, IOError):
+            # 如果PID文件存在但无效，删除它
+            try:
+                os.remove(LOCK_FILE_PATH)
+            except:
+                pass
+    
+    # 方法2: 尝试绑定一个特定端口
     try:
-        # 使用一个不太常用的端口
-        port = 45678
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('localhost', port))
-        # 如果成功绑定，说明没有其他实例在运行
-        sock.close()
+        LOCK_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        LOCK_SOCKET.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        LOCK_SOCKET.bind(('localhost', 45678))
+        LOCK_SOCKET.listen(1)
+        
+        # 创建PID文件
+        with open(LOCK_FILE_PATH, 'w') as f:
+            f.write(str(os.getpid()))
+            
+        # 注册退出时清理
+        atexit.register(cleanup_lock)
+        
         return False
     except socket.error:
         # 如果端口已被占用，说明已有实例在运行
         return True
+
+def cleanup_lock():
+    """清理锁文件和套接字"""
+    global LOCK_SOCKET
+    
+    # 关闭套接字
+    if LOCK_SOCKET:
+        try:
+            LOCK_SOCKET.close()
+        except:
+            pass
+    
+    # 删除PID文件
+    if os.path.exists(LOCK_FILE_PATH):
+        try:
+            # 只删除自己创建的PID文件
+            with open(LOCK_FILE_PATH, 'r') as f:
+                pid = int(f.read().strip())
+                if pid == os.getpid():
+                    os.remove(LOCK_FILE_PATH)
+        except:
+            pass
+
+# 强制终止所有VideoEditor相关进程
+def kill_all_video_editor_processes(except_pid=None):
+    """终止所有VideoEditor相关进程，除了指定的PID"""
+    current_pid = os.getpid()
+    
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            # 跳过当前进程和指定的例外进程
+            if proc.info['pid'] == current_pid or proc.info['pid'] == except_pid:
+                continue
+                
+            # 检查进程名称是否包含VideoEditor
+            proc_name = proc.info['name'].lower()
+            if "videoeditor" in proc_name or (
+                "python" in proc_name and any(
+                    "videoeditor" in cmd.lower() or "run.py" in cmd.lower() 
+                    for cmd in proc.cmdline() if isinstance(cmd, str)
+                )
+            ):
+                print(f"Terminating process: {proc.info['pid']} ({proc.info['name']})")
+                proc.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+# 设置超时保护，防止无限循环
+def timeout_handler():
+    """超时处理函数"""
+    global APP_STARTED
+    
+    if not APP_STARTED:
+        logger.critical("应用程序启动超时，可能陷入无限循环，强制退出")
+        print("应用程序启动超时，可能陷入无限循环，强制退出")
+        
+        # 终止所有其他VideoEditor进程
+        kill_all_video_editor_processes()
+        
+        # 强制退出当前进程
+        os._exit(1)
+
+# 设置紧急退出处理
+def emergency_exit_handler(signum, frame):
+    """紧急退出处理函数"""
+    logger.critical(f"收到信号 {signum}，紧急退出")
+    print(f"收到信号 {signum}，紧急退出")
+    
+    # 终止所有VideoEditor进程
+    kill_all_video_editor_processes()
+    
+    # 清理锁
+    cleanup_lock()
+    
+    # 强制退出
+    os._exit(1)
+
+# 注册信号处理器
+signal.signal(signal.SIGTERM, emergency_exit_handler)
+signal.signal(signal.SIGINT, emergency_exit_handler)
+if hasattr(signal, 'SIGBREAK'):  # Windows特有
+    signal.signal(signal.SIGBREAK, emergency_exit_handler)
 
 # 如果应用程序已经在运行，则退出
 if is_already_running():
@@ -57,6 +173,7 @@ logger = logging.getLogger("VideoEditor")
 logger.info("应用程序启动")
 logger.info(f"Python版本: {sys.version}")
 logger.info(f"运行路径: {os.path.abspath(__file__)}")
+logger.info(f"进程ID: {os.getpid()}")
 
 # 添加当前目录到Python路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -129,15 +246,7 @@ except Exception as e:
     logger.error(f"导入moviepy时出错: {str(e)}")
     logger.debug(traceback.format_exc())
 
-# 设置超时保护，防止无限循环
-def timeout_handler():
-    """超时处理函数"""
-    logger.critical("应用程序启动超时，可能陷入无限循环，强制退出")
-    print("应用程序启动超时，可能陷入无限循环，强制退出")
-    os._exit(1)  # 强制退出
-
 # 设置启动超时（30秒）
-import threading
 timeout_timer = threading.Timer(30, timeout_handler)
 timeout_timer.daemon = True
 timeout_timer.start()
@@ -149,6 +258,9 @@ try:
     
     # 取消超时计时器
     timeout_timer.cancel()
+    
+    # 标记应用程序已启动
+    APP_STARTED = True
     
     logger.info("开始运行主程序...")
     main()
@@ -199,6 +311,8 @@ def cleanup():
     # 确保超时计时器被取消
     if timeout_timer.is_alive():
         timeout_timer.cancel()
+    # 清理锁
+    cleanup_lock()
 
 # 注册清理函数
 atexit.register(cleanup)

@@ -34,6 +34,26 @@ def run_command(command):
         print(f"执行命令时出错: {str(e)}")
         return False
 
+def check_disk_space():
+    """检查磁盘空间"""
+    print_header("检查磁盘空间")
+    
+    try:
+        disk = shutil.disk_usage('.')
+        free_gb = disk.free / (1024**3)
+        print(f"可用磁盘空间: {free_gb:.2f} GB")
+        
+        if free_gb < 2:
+            print("警告: 磁盘空间不足! 构建过程需要至少 2 GB 的可用空间。")
+            print("请清理磁盘空间后再继续。")
+            return False
+        
+        print("磁盘空间充足，可以继续。")
+        return True
+    except Exception as e:
+        print(f"检查磁盘空间时出错: {str(e)}")
+        return False
+
 def fix_numpy_opencv():
     """修复NumPy和OpenCV"""
     print_header("修复NumPy和OpenCV")
@@ -71,6 +91,38 @@ def fix_pyinstaller():
     
     return success
 
+def clean_temp_files():
+    """清理临时文件"""
+    print_header("清理临时文件")
+    
+    # 清理Python缓存文件
+    print("清理Python缓存文件...")
+    for root, dirs, files in os.walk('.'):
+        for dir_name in dirs:
+            if dir_name == '__pycache__':
+                cache_dir = os.path.join(root, dir_name)
+                try:
+                    shutil.rmtree(cache_dir)
+                    print(f"已删除: {cache_dir}")
+                except:
+                    pass
+    
+    # 清理PyInstaller临时文件
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    print(f"清理临时目录: {temp_dir}")
+    for item in os.listdir(temp_dir):
+        item_path = os.path.join(temp_dir, item)
+        if os.path.isdir(item_path) and ('pyinstaller' in item.lower() or 'video_editor' in item.lower()):
+            try:
+                shutil.rmtree(item_path)
+                print(f"已删除: {item_path}")
+            except:
+                pass
+    
+    print("临时文件清理完成")
+    return True
+
 def create_spec_file():
     """创建自定义spec文件"""
     print_header("创建自定义spec文件")
@@ -99,7 +151,10 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['matplotlib', 'tkinter', 'PySide2', 'PySide6', 'PyQt6'],  # 排除不需要的模块
+    excludes=[
+        'matplotlib', 'tkinter', 'PySide2', 'PySide6', 'PyQt6', 'tcl', 'tk',
+        'PIL', 'IPython', 'pandas', 'scipy', 'notebook', 'sphinx', 'pytest'
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -110,6 +165,8 @@ a = Analysis(
 a.binaries = [x for x in a.binaries if not x[0].startswith('matplotlib')]
 a.binaries = [x for x in a.binaries if not x[0].startswith('tcl')]
 a.binaries = [x for x in a.binaries if not x[0].startswith('tk')]
+a.binaries = [x for x in a.binaries if not x[0].startswith('_tkinter')]
+a.binaries = [x for x in a.binaries if not 'tzdata' in x[0]]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
@@ -212,6 +269,15 @@ def main():
     print_header("PyInstaller打包修复工具")
     print("此工具将修复PyInstaller打包时可能遇到的问题")
     print("请确保您有管理员权限运行此脚本")
+    
+    # 检查磁盘空间
+    if not check_disk_space():
+        print("磁盘空间不足，请清理后再试")
+        input("\n按Enter键退出...")
+        return 1
+    
+    # 清理临时文件
+    clean_temp_files()
     
     # 修复NumPy和OpenCV
     fix_numpy_opencv()
