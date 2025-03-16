@@ -13,6 +13,14 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo Checking dependencies...
+
+:: 运行依赖检查脚本
+python check_numpy.py
+if %ERRORLEVEL% neq 0 (
+    echo Warning: Dependency check failed, will try to continue anyway
+)
+
+:: 确保安装了所有依赖
 pip show PyQt5 >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo Installing dependencies...
@@ -22,6 +30,9 @@ if %ERRORLEVEL% neq 0 (
         pause
         exit /b 1
     )
+) else (
+    :: 确保numpy是兼容版本
+    pip install numpy<2.0.0 -U
 )
 
 echo.
